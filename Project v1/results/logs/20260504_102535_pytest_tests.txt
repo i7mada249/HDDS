@@ -1,0 +1,9 @@
+Timestamp: 2026-05-04T10:25:35+02:00
+Run type: pytest
+Name: tests
+
+Pytest session report
+Exit status: 0
+Collected tests: 4
+Command: -q Project v1/tests/test_app_scenario_loader.py
+passed: 4

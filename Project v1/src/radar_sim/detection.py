@@ -61,6 +61,11 @@ def ca_cfar_2d(
     threshold_map = alpha * noise_estimate
     detection_mask = power_map > threshold_map
 
+    stationary_bins = np.abs(velocity_axis_mps) < config.min_abs_velocity_mps
+    if np.any(stationary_bins):
+        detection_mask = detection_mask.copy()
+        detection_mask[stationary_bins, :] = False
+
     labels, num_regions = ndimage.label(detection_mask)
     detections: list[Detection] = []
 

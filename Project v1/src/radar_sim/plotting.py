@@ -7,13 +7,17 @@ from .detection import DetectionResult
 from .processing import ProcessingResult
 
 
+def detection_power_db(power_map: np.ndarray) -> np.ndarray:
+    return 10.0 * np.log10(power_map + 1.0e-18)
+
+
 def plot_processing_summary(
     processing: ProcessingResult,
     detections: DetectionResult,
     scenario_name: str,
 ) -> None:
-    rd_power_db = 10.0 * np.log10(detections.power_map + 1.0e-18)
-    threshold_db = 10.0 * np.log10(detections.threshold_map + 1.0e-18)
+    rd_power_db = detection_power_db(detections.power_map)
+    threshold_db = detection_power_db(detections.threshold_map)
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 

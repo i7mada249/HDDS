@@ -9,6 +9,7 @@ import numpy as np
 from .channel import simulate_surveillance_matrix
 from .constants import AppConfig, ScenarioConfig, load_app_config
 from .detection import DetectionResult, ca_cfar_2d
+from .logging_utils import project_root, write_run_log
 from .metrics import TruthTarget, match_detection_to_truth, scenario_truth
 from .plotting import plot_processing_summary
 from .processing import ProcessingResult, process_reference_and_surveillance
@@ -22,11 +23,6 @@ class ScenarioRunResult:
     truths: tuple[TruthTarget, ...]
     processing: ProcessingResult
     detections: DetectionResult
-
-
-def project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
 
 def default_config_path() -> Path:
     return project_root() / "configs" / "default.yaml"
@@ -117,13 +113,23 @@ def run_named_scenario(
 ) -> ScenarioRunResult:
     scenario = get_scenario(config, scenario_name)
     result = execute_scenario(config=config, scenario=scenario)
-    print(
-        format_report(
-            processing=result.processing,
-            detections=result.detections,
-            truths=result.truths,
-        )
+    report_text = format_report(
+        processing=result.processing,
+        detections=result.detections,
+        truths=result.truths,
     )
+    print(report_text)
+
+    log_path = write_run_log(
+        run_type="runner",
+        name=scenario_name,
+        content=(
+            f"Scenario key: {scenario_name}\n"
+            f"Scenario name: {result.scenario.name}\n\n"
+            f"{report_text}"
+        ),
+    )
+    print(f"\nSaved run log: {log_path}")
 
     if show_plots:
         plot_processing_summary(

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .constants import RadarConfig, ScenarioConfig, Target, load_app_config
 from .geometry import bistatic_range_to_delay_s, velocity_mps_to_doppler_hz
+from .logging_utils import write_run_log
 from .plotting import plot_processing_summary
 from .runner import default_config_path, execute_scenario, format_report
 
@@ -108,22 +109,30 @@ def build_custom_scenario(config_path: Path) -> tuple:
     return app_config, scenario
 
 
-def print_custom_scenario_summary(scenario: ScenarioConfig, radar) -> None:
-    print("\nScenario summary")
-    print("----------------")
-    print(f"Name: {scenario.name}")
-    print(f"Noise power (dB): {scenario.noise_power_db:.2f}")
-    print(f"Clutter amplitude (dB): {scenario.clutter_amplitude_db:.2f}")
-    print(f"Targets: {len(scenario.targets)}")
+def custom_scenario_summary_text(scenario: ScenarioConfig, radar: RadarConfig) -> str:
+    lines = [
+        "Scenario summary",
+        "----------------",
+        f"Name: {scenario.name}",
+        f"Noise power (dB): {scenario.noise_power_db:.2f}",
+        f"Clutter amplitude (dB): {scenario.clutter_amplitude_db:.2f}",
+        f"Targets: {len(scenario.targets)}",
+    ]
     for idx, target in enumerate(scenario.targets, start=1):
         range_m = target.delay_s * radar.speed_of_light
         velocity_mps = target.doppler_hz * radar.wavelength_m / 2.0
-        print(
+        lines.append(
             f"  {idx}. distance={range_m:.2f} m, "
             f"speed={velocity_mps:.2f} m/s, "
             f"doppler={target.doppler_hz:.2f} Hz, "
             f"amplitude={target.amplitude_db:.2f} dB"
         )
+    return "\n".join(lines)
+
+
+def print_custom_scenario_summary(scenario: ScenarioConfig, radar: RadarConfig) -> None:
+    print()
+    print(custom_scenario_summary_text(scenario, radar))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -154,14 +163,23 @@ def main() -> None:
         return
 
     result = execute_scenario(config=app_config, scenario=scenario)
-    print()
-    print(
-        format_report(
-            processing=result.processing,
-            detections=result.detections,
-            truths=result.truths,
-        )
+    report_text = format_report(
+        processing=result.processing,
+        detections=result.detections,
+        truths=result.truths,
     )
+    print()
+    print(report_text)
+
+    log_path = write_run_log(
+        run_type="tui",
+        name=scenario.name,
+        content=(
+            f"{custom_scenario_summary_text(scenario, app_config.radar)}\n\n"
+            f"{report_text}"
+        ),
+    )
+    print(f"\nSaved run log: {log_path}")
 
     if not args.no_plots:
         plot_processing_summary(

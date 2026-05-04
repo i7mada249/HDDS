@@ -37,6 +37,7 @@ class CFARConfig:
     train_cells_range: int = 8
     train_cells_doppler: int = 8
     pfa: float = 1.0e-5
+    min_abs_velocity_mps: float = 1.0
 
 
 @dataclass(frozen=True)

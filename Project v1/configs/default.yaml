@@ -19,6 +19,7 @@ cfar:
   train_cells_range: 8
   train_cells_doppler: 8
   pfa: 1.0e-5
+  min_abs_velocity_mps: 1.0
 
 scenarios:
   clear_sky:

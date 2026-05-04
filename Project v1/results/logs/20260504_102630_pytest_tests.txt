@@ -1,0 +1,9 @@
+Timestamp: 2026-05-04T10:26:30+02:00
+Run type: pytest
+Name: tests
+
+Pytest session report
+Exit status: 0
+Collected tests: 22
+Command: -q Project v1/tests
+passed: 22

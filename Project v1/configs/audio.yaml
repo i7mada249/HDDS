@@ -1,0 +1,27 @@
+sample_rate_hz: 16000
+window_s: 3.0
+hop_s: 0.5
+threshold: 0.5
+
+models:
+  mode: both
+  baseline_path: src/audio/models/sound_baseline_mfcc_logreg.joblib
+  yamnet_classifier_path: src/audio/models/sound_yamnet_hgb.joblib
+  yamnet_tfhub_handle: https://tfhub.dev/google/yamnet/1
+
+score_fusion:
+  baseline_weight: 1.0
+  yamnet_weight: 1.0
+  note: >
+    These weights are explicit placeholders. Recalibrate them on validation data
+    before using audio scores in the final multimodal fusion layer.
+
+temporal_confirmation:
+  enabled: false
+  confirm_m: 3
+  confirm_n: 5
+
+runtime:
+  requires_ffmpeg: true
+  legacy_package: audio_nodule
+  primary_package: audio
