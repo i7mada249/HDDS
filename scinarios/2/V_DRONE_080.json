@@ -1,0 +1,14 @@
+{
+  "name": "scenario-v-drone-080",
+  "noise_power_db": -75,
+  "clutter_amplitude_db": -45,
+  "targets": [
+    {
+      "name": "Drone 1",
+      "distance_m": 800,
+      "speed_mps": 10,
+      "doppler_hz": 160,
+      "amplitude_db": -18
+    }
+  ]
+}

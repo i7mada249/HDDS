@@ -1,0 +1,48 @@
+{
+  "name": "disappearing-target",
+  "description": "A target is visible at first, then fades and disappears behind clutter.",
+  "noise_power_db": -75,
+  "clutter_amplitude_db": -44,
+  "duration_s": 16,
+  "frame_interval_s": 0.5,
+  "targets": [
+    {
+      "name": "Drone Vanish",
+      "distance_m": 1400,
+      "speed_mps": 8,
+      "doppler_hz": 128,
+      "amplitude_db": -18
+    }
+  ],
+  "timeline": [
+    {
+      "t_start_s": 0,
+      "t_end_s": 6,
+      "targets": [
+        {
+          "name": "Drone Vanish",
+          "initial_distance_m": 1400,
+          "radial_velocity_mps": 8,
+          "amplitude_db": -18
+        }
+      ]
+    },
+    {
+      "t_start_s": 6,
+      "t_end_s": 10,
+      "targets": [
+        {
+          "name": "Drone Vanish",
+          "initial_distance_m": 1352,
+          "radial_velocity_mps": 8,
+          "amplitude_db": -25
+        }
+      ]
+    },
+    {
+      "t_start_s": 10,
+      "t_end_s": 16,
+      "targets": []
+    }
+  ]
+}

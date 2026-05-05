@@ -1,0 +1,50 @@
+{
+  "name": "decoy-and-true-target",
+  "description": "A weak short-lived decoy appears before a stronger real target remains persistent.",
+  "noise_power_db": -78,
+  "clutter_amplitude_db": -46,
+  "duration_s": 18,
+  "frame_interval_s": 0.5,
+  "targets": [
+    {
+      "name": "True Drone",
+      "distance_m": 2100,
+      "speed_mps": 15,
+      "doppler_hz": 240,
+      "amplitude_db": -18
+    },
+    {
+      "name": "Decoy Echo",
+      "distance_m": 900,
+      "speed_mps": 5,
+      "doppler_hz": 80,
+      "amplitude_db": -27
+    }
+  ],
+  "timeline": [
+    {
+      "t_start_s": 0,
+      "t_end_s": 4,
+      "targets": [
+        {
+          "name": "Decoy Echo",
+          "initial_distance_m": 900,
+          "radial_velocity_mps": 5,
+          "amplitude_db": -27
+        }
+      ]
+    },
+    {
+      "t_start_s": 4,
+      "t_end_s": 18,
+      "targets": [
+        {
+          "name": "True Drone",
+          "initial_distance_m": 2100,
+          "radial_velocity_mps": 15,
+          "amplitude_db": -18
+        }
+      ]
+    }
+  ]
+}

@@ -23,5 +23,4 @@ temporal_confirmation:
 
 runtime:
   requires_ffmpeg: true
-  legacy_package: audio_nodule
   primary_package: audio

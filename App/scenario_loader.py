@@ -65,10 +65,20 @@ class RadarObject:
 
 
 @dataclass(frozen=True)
+class RadarTimelinePhase:
+    t_start_s: float
+    t_end_s: float
+    objects: tuple[RadarObject, ...]
+
+
+@dataclass(frozen=True)
 class RadarScenarioData:
     scenario: ScenarioConfig
     objects: tuple[RadarObject, ...]
     raw: dict[str, Any]
+    timeline: tuple[RadarTimelinePhase, ...]
+    duration_s: float | None
+    frame_interval_s: float | None
 
 
 def discover_scenarios(directory: Path) -> list[ScenarioBundle]:
@@ -150,7 +160,78 @@ def load_radar_scenario(path: Path, radar: RadarConfig) -> RadarScenarioData:
             radar.clutter_amplitude_db,
         ),
     )
-    return RadarScenarioData(scenario=scenario, objects=tuple(objects), raw=raw)
+    timeline = _parse_timeline(raw.get("timeline"), radar=radar)
+    return RadarScenarioData(
+        scenario=scenario,
+        objects=tuple(objects),
+        raw=raw,
+        timeline=timeline,
+        duration_s=_optional_float(raw.get("duration_s")),
+        frame_interval_s=_optional_float(raw.get("frame_interval_s")),
+    )
+
+
+def active_radar_objects_at_time(
+    data: RadarScenarioData,
+    radar: RadarConfig,
+    current_s: float,
+) -> tuple[RadarObject, ...]:
+    if data.timeline:
+        active: list[RadarObject] = []
+        for phase in data.timeline:
+            if phase.t_start_s <= current_s < phase.t_end_s:
+                for obj in phase.objects:
+                    elapsed_s = max(0.0, current_s - phase.t_start_s)
+                    distance_m = max(0.0, obj.distance_m - obj.speed_mps * elapsed_s)
+                    active.append(
+                        RadarObject(
+                            name=obj.name,
+                            distance_m=distance_m,
+                            speed_mps=obj.speed_mps,
+                            doppler_hz=velocity_mps_to_doppler_hz(obj.speed_mps, radar),
+                            delay_s=bistatic_range_to_delay_s(distance_m, radar),
+                            amplitude_db=obj.amplitude_db,
+                        )
+                    )
+        return tuple(active)
+
+    active = []
+    for obj in data.objects:
+        distance_m = max(0.0, obj.distance_m - obj.speed_mps * current_s)
+        active.append(
+            RadarObject(
+                name=obj.name,
+                distance_m=distance_m,
+                speed_mps=obj.speed_mps,
+                doppler_hz=velocity_mps_to_doppler_hz(obj.speed_mps, radar),
+                delay_s=bistatic_range_to_delay_s(distance_m, radar),
+                amplitude_db=obj.amplitude_db,
+            )
+        )
+    return tuple(active)
+
+
+def scenario_at_time(
+    data: RadarScenarioData,
+    radar: RadarConfig,
+    current_s: float,
+) -> tuple[ScenarioConfig, tuple[RadarObject, ...]]:
+    active_objects = active_radar_objects_at_time(data=data, radar=radar, current_s=current_s)
+    targets = tuple(
+        Target(
+            delay_s=obj.delay_s,
+            doppler_hz=obj.doppler_hz,
+            amplitude_db=obj.amplitude_db,
+        )
+        for obj in active_objects
+    )
+    scenario = ScenarioConfig(
+        name=data.scenario.name,
+        targets=targets,
+        noise_power_db=data.scenario.noise_power_db,
+        clutter_amplitude_db=data.scenario.clutter_amplitude_db,
+    )
+    return scenario, active_objects
 
 
 def _find_required(
@@ -205,6 +286,33 @@ def _parse_radar_object(item: dict[str, Any], index: int, radar: RadarConfig) ->
     )
 
 
+def _parse_timeline(item: Any, radar: RadarConfig) -> tuple[RadarTimelinePhase, ...]:
+    if item is None:
+        return ()
+    if not isinstance(item, list):
+        raise ValueError("Radar JSON 'timeline' must be a list when provided.")
+
+    phases: list[RadarTimelinePhase] = []
+    for phase_index, phase in enumerate(item, start=1):
+        if not isinstance(phase, dict):
+            raise ValueError(f"Timeline phase {phase_index} must be an object.")
+        raw_targets = phase.get("targets", [])
+        if not isinstance(raw_targets, list):
+            raise ValueError(f"Timeline phase {phase_index} targets must be a list.")
+        objects = tuple(
+            _parse_radar_object(target, index=target_index, radar=radar)
+            for target_index, target in enumerate(raw_targets, start=1)
+        )
+        phases.append(
+            RadarTimelinePhase(
+                t_start_s=float(phase.get("t_start_s", 0.0)),
+                t_end_s=float(phase.get("t_end_s", 0.0)),
+                objects=objects,
+            )
+        )
+    return tuple(phases)
+
+
 def _float_from(
     item: dict[str, Any],
     keys: tuple[str, ...],
@@ -214,3 +322,9 @@ def _float_from(
         if key in item and item[key] is not None:
             return float(item[key])
     return float(default)
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return float(value)

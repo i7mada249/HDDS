@@ -1,0 +1,57 @@
+{
+  "name": "moving-targets-convoy",
+  "description": "Three moving drones approaching with different speeds and amplitudes.",
+  "noise_power_db": -76,
+  "clutter_amplitude_db": -46,
+  "duration_s": 20,
+  "frame_interval_s": 0.5,
+  "targets": [
+    {
+      "name": "Drone Alpha",
+      "distance_m": 1800,
+      "speed_mps": 12,
+      "doppler_hz": 192,
+      "amplitude_db": -18
+    },
+    {
+      "name": "Drone Beta",
+      "distance_m": 2400,
+      "speed_mps": 18,
+      "doppler_hz": 288,
+      "amplitude_db": -20
+    },
+    {
+      "name": "Drone Gamma",
+      "distance_m": 3200,
+      "speed_mps": 24,
+      "doppler_hz": 384,
+      "amplitude_db": -22
+    }
+  ],
+  "timeline": [
+    {
+      "t_start_s": 0,
+      "t_end_s": 20,
+      "targets": [
+        {
+          "name": "Drone Alpha",
+          "initial_distance_m": 1800,
+          "radial_velocity_mps": 12,
+          "amplitude_db": -18
+        },
+        {
+          "name": "Drone Beta",
+          "initial_distance_m": 2400,
+          "radial_velocity_mps": 18,
+          "amplitude_db": -20
+        },
+        {
+          "name": "Drone Gamma",
+          "initial_distance_m": 3200,
+          "radial_velocity_mps": 24,
+          "amplitude_db": -22
+        }
+      ]
+    }
+  ]
+}

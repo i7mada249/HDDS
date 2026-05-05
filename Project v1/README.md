@@ -30,13 +30,13 @@ This is the first clean implementation pass created from the old repository mate
 Project v1/
 ├── src/radar_sim/
 ├── src/audio/
-├── tests/
-├── notebooks/
 ├── configs/
 ├── docs/
-├── results/
 └── requirements.txt
 ```
+
+Archived support material such as tests, notebooks, and previous run logs was
+moved to `../archive/repo_cleanup_20260505/project_v1_trim/Project v1/`.
 
 ## Setup
 
@@ -147,7 +147,6 @@ What it does:
 
 Notes:
 
-- `audio_nodule.video_test` remains as a compatibility wrapper, but new work should use `audio.video_test`
 - `--model both` combines available baseline and YAMNet probabilities with explicit weights
 - `--confirm-m` and `--confirm-n` apply M/N temporal confirmation to suppress isolated audio spikes
 - the YAMNet path needs `tensorflow` and `tensorflow-hub`
@@ -156,6 +155,9 @@ Notes:
 - `configs/audio.yaml` records the current runtime defaults and calibration placeholders
 
 ## Run Logs
+
+Runtime logs are still written to `Project v1/results/logs/` when audio or radar
+commands are run. Historical logs were archived during repository cleanup.
 
 Every `runner`, `tui`, `realtime`, `pytest`, and `audio_video_test` session now writes a timestamped text log to:
 

@@ -1,0 +1,55 @@
+{
+  "name": "stop-go-target",
+  "description": "One drone approaches, hovers with near-zero Doppler, then accelerates again.",
+  "noise_power_db": -75,
+  "clutter_amplitude_db": -45,
+  "duration_s": 24,
+  "frame_interval_s": 0.5,
+  "targets": [
+    {
+      "name": "StopGo Drone",
+      "distance_m": 1700,
+      "speed_mps": 16,
+      "doppler_hz": 256,
+      "amplitude_db": -18
+    }
+  ],
+  "timeline": [
+    {
+      "t_start_s": 0,
+      "t_end_s": 8,
+      "targets": [
+        {
+          "name": "StopGo Drone",
+          "initial_distance_m": 1700,
+          "radial_velocity_mps": 16,
+          "amplitude_db": -18
+        }
+      ]
+    },
+    {
+      "t_start_s": 8,
+      "t_end_s": 14,
+      "targets": [
+        {
+          "name": "StopGo Drone",
+          "initial_distance_m": 1572,
+          "radial_velocity_mps": 0.2,
+          "amplitude_db": -18
+        }
+      ]
+    },
+    {
+      "t_start_s": 14,
+      "t_end_s": 24,
+      "targets": [
+        {
+          "name": "StopGo Drone",
+          "initial_distance_m": 1570.8,
+          "radial_velocity_mps": 22,
+          "amplitude_db": -17
+        }
+      ]
+    }
+  ]
+}

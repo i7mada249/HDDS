@@ -20,9 +20,7 @@ The final thesis direction we settled on is:
 - [Review](./Review)
 - [Plans](./Plans)
 - [archive](./archive)
-- [AudioModule](./AudioModule)
-- [App](./App)
-- [signal module](./signal%20module)
+- [archived legacy repo cleanup](./archive/repo_cleanup_20260505)
 
 ## What We Did, In Order
 
@@ -400,8 +398,18 @@ PYTHONPATH=src python -m audio.video_test /path/to/video.mp4 --model baseline --
 - the fusion direction is defined
 - the intended next architecture is radar + vision + audio with temporal alignment
 
+### Multistatic radar map prototype
+
+- standalone radar-only prototype added in `archive/repo_cleanup_20260505/radar_multistatic_map/`
+- uses Leaflet with OpenStreetMap tiles for the map view
+- simulates one source tower, multiple surveillance antennas, and one drone
+- estimates drone location from noisy bistatic range measurements
+- source, drone truth, and surveillance antenna locations/parameters are editable
+- this is not integrated into the main dashboard yet
+
 ## Key File Paths To Know
 
+- [archived radar_multistatic_map](./archive/repo_cleanup_20260505/radar_multistatic_map)
 - [Project v1/README.md](./Project%20v1/README.md)
 - [Project v1/docs/methodology.md](./Project%20v1/docs/methodology.md)
 - [Project v1/configs/default.yaml](./Project%20v1/configs/default.yaml)

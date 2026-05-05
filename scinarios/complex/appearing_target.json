@@ -1,0 +1,36 @@
+{
+  "name": "appearing-target",
+  "description": "A previously absent drone appears after several seconds and starts approaching.",
+  "noise_power_db": -77,
+  "clutter_amplitude_db": -45,
+  "duration_s": 18,
+  "frame_interval_s": 0.5,
+  "targets": [
+    {
+      "name": "Late Entry Drone",
+      "distance_m": 2200,
+      "speed_mps": 14,
+      "doppler_hz": 224,
+      "amplitude_db": -19
+    }
+  ],
+  "timeline": [
+    {
+      "t_start_s": 0,
+      "t_end_s": 5,
+      "targets": []
+    },
+    {
+      "t_start_s": 5,
+      "t_end_s": 18,
+      "targets": [
+        {
+          "name": "Late Entry Drone",
+          "initial_distance_m": 2200,
+          "radial_velocity_mps": 14,
+          "amplitude_db": -19
+        }
+      ]
+    }
+  ]
+}

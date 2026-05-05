@@ -14,7 +14,6 @@ from audio.schemas import AudioSegmentPrediction, AudioWindow
 
 MODULE_ROOT = Path(__file__).resolve().parent
 MODEL_DIR = MODULE_ROOT / "models"
-LEGACY_MODEL_DIR = MODULE_ROOT.parent / "audio_nodule"
 BASELINE_MODEL_NAME = "sound_baseline_mfcc_logreg.joblib"
 YAMNET_MODEL_NAME = "sound_yamnet_hgb.joblib"
 YAMNET_HANDLE = "https://tfhub.dev/google/yamnet/1"
@@ -31,7 +30,7 @@ class LoadedAudioModels:
 
 
 def _resolve_model_path(model_name: str, models_dir: Path | None = None) -> Path:
-    search_dirs = [models_dir] if models_dir is not None else [MODEL_DIR, LEGACY_MODEL_DIR]
+    search_dirs = [models_dir] if models_dir is not None else [MODEL_DIR]
     for directory in search_dirs:
         if directory is None:
             continue

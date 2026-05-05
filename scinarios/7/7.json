@@ -1,0 +1,14 @@
+{
+  "name": "scenario-7",
+  "noise_power_db": -75,
+  "clutter_amplitude_db": -45,
+  "targets": [
+    {
+      "name": "Drone 1",
+      "distance_m": 1800,
+      "speed_mps": 20,
+      "doppler_hz": 320,
+      "amplitude_db": -18
+    }
+  ]
+}

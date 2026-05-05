@@ -17,7 +17,7 @@ PYTHONPATH=src python -m audio.video_test /path/to/video.mp4
 Legacy wrapper:
 
 ```bash
-PYTHONPATH=src python -m audio_nodule.video_test /path/to/video.mp4
+PYTHONPATH=src python -m audio.video_test /path/to/video.mp4
 ```
 
 Use the primary package for new work.

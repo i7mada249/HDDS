@@ -1,0 +1,44 @@
+{
+  "name": "crossing-targets",
+  "description": "Two drones move with opposite radial velocities and cross in range over time.",
+  "noise_power_db": -76,
+  "clutter_amplitude_db": -45,
+  "duration_s": 22,
+  "frame_interval_s": 0.5,
+  "targets": [
+    {
+      "name": "Inbound Drone",
+      "distance_m": 2600,
+      "speed_mps": 20,
+      "doppler_hz": 320,
+      "amplitude_db": -18
+    },
+    {
+      "name": "Outbound Drone",
+      "distance_m": 1200,
+      "speed_mps": -10,
+      "doppler_hz": -160,
+      "amplitude_db": -21
+    }
+  ],
+  "timeline": [
+    {
+      "t_start_s": 0,
+      "t_end_s": 22,
+      "targets": [
+        {
+          "name": "Inbound Drone",
+          "initial_distance_m": 2600,
+          "radial_velocity_mps": 20,
+          "amplitude_db": -18
+        },
+        {
+          "name": "Outbound Drone",
+          "initial_distance_m": 1200,
+          "radial_velocity_mps": -10,
+          "amplitude_db": -21
+        }
+      ]
+    }
+  ]
+}

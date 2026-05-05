@@ -15,8 +15,9 @@ os.environ.setdefault("MPLCONFIGDIR", "/tmp/hdds_matplotlib")
 os.environ.setdefault("XDG_CACHE_HOME", "/tmp/hdds_cache")
 
 import cv2
-import joblib
 import librosa
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 import numpy as np
 import torch
 import tensorflow as tf
@@ -46,6 +47,7 @@ try:
         REPO_ROOT,
         RadarScenarioData,
         ScenarioBundle,
+        scenario_at_time,
         bundle_from_member,
         discover_scenarios,
         load_radar_scenario,
@@ -56,6 +58,7 @@ except ImportError:
         REPO_ROOT,
         RadarScenarioData,
         ScenarioBundle,
+        scenario_at_time,
         bundle_from_member,
         discover_scenarios,
         load_radar_scenario,
@@ -79,10 +82,27 @@ N_MELS = 128
 VISION_CONFIDENCE = 0.5
 VISION_EVERY_N_FRAMES = 3
 
-YOLO_DIR = REPO_ROOT / "yolov5"
-YOLO_WEIGHTS = YOLO_DIR / "best.pt"
+
+def _first_existing_path(*candidates: Path) -> Path:
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+YOLO_DIR = _first_existing_path(
+    REPO_ROOT / "yolov5",
+    REPO_ROOT / "archive" / "repo_cleanup_20260505" / "yolov5",
+)
+YOLO_WEIGHTS = _first_existing_path(
+    YOLO_DIR / "best.pt",
+    REPO_ROOT / "archive" / "repo_cleanup_20260505" / "yolov5" / "best.pt",
+)
 # Path to the new sound model
-AUDIO_MODEL_PATH = REPO_ROOT / "Project v1" / "src" / "audio" / "drone_sound_model.h5"
+AUDIO_MODEL_PATH = _first_existing_path(
+    PROJECT_ROOT / "src" / "audio" / "drone_sound_model.h5",
+    REPO_ROOT / "src" / "audio" / "drone_sound_model.h5",
+)
 
 BG = "#0f172a"
 SURFACE = "#111827"
@@ -115,6 +135,8 @@ class RadarRuntime:
     detection_count: int
     power_db: np.ndarray
     detection_mask: np.ndarray
+    range_axis_m: np.ndarray
+    velocity_axis_mps: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -191,7 +213,7 @@ def load_audio_backend() -> LoadedAudioBackend:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 project_models = load_audio_models(use_baseline=True, use_yamnet=False)
-            note = "Using Project v1 baseline audio model instead."
+            note = "Using internal baseline audio model instead."
             return LoadedAudioBackend(
                 name="project_baseline",
                 project_models=project_models,
@@ -313,6 +335,8 @@ class HybridDetectionDashboard:
         self.yolo_model: object | None = None
         self.audio_predictions: list[AudioPrediction] = []
         self.playback_audio: PlaybackAudio | None = None
+        self.loaded_radar_data: RadarScenarioData | None = None
+        self.radar_reference_matrix: np.ndarray | None = None
         self.radar_runtime: RadarRuntime | None = None
         self.cap: cv2.VideoCapture | None = None
         self.running = False
@@ -321,6 +345,8 @@ class HybridDetectionDashboard:
         self.video_frame_count = 0
         self.video_duration_s = 0.0
         self.playback_started_at = 0.0
+        self.radar_update_interval_s = 0.5
+        self.last_radar_update_step = -1
         self.last_vision_detected = False
         self.last_vision_boxes: list[tuple[int, int, int, int, float]] = []
         self.plot_history: list[DetectionSnapshot] = []
@@ -390,8 +416,11 @@ class HybridDetectionDashboard:
             font=("Arial", 12, "bold"),
             anchor="w",
         ).pack(fill=tk.X, padx=12, pady=(12, 8))
-        self.radar_heatmap_label = tk.Label(self.radar_heatmap_panel, bg="#020617")
-        self.radar_heatmap_label.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 8))
+        self.radar_figure = Figure(figsize=(3.2, 5.2), dpi=100, facecolor="#020617")
+        self.radar_axes = self.radar_figure.add_subplot(211)
+        self.radar_mask_axes = self.radar_figure.add_subplot(212)
+        self.radar_canvas = FigureCanvasTkAgg(self.radar_figure, master=self.radar_heatmap_panel)
+        self.radar_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 8))
         self.radar_heatmap_caption = tk.Label(
             self.radar_heatmap_panel,
             text="Range-Doppler CFAR",
@@ -566,6 +595,8 @@ class HybridDetectionDashboard:
         self.bundle = bundle
         self.audio_predictions = []
         self.playback_audio = None
+        self.loaded_radar_data = None
+        self.radar_reference_matrix = None
         self.radar_runtime = None
         self.plot_history = []
         self.title_label.configure(text=bundle.name)
@@ -635,20 +666,37 @@ class HybridDetectionDashboard:
         self._render_radar_heatmap()
         self._start_video()
 
-    def _build_radar_runtime(self) -> RadarRuntime:
+    def _build_radar_runtime(self, current_s: float = 0.0) -> RadarRuntime:
         if self.bundle is None:
             raise RuntimeError("No scenario is loaded.")
-        radar_data = load_radar_scenario(self.bundle.radar_path, self.app_config.radar)
-        rng = np.random.default_rng(self.app_config.seed)
-        reference = generate_reference_matrix(config=self.app_config.radar, rng=rng)
+        if self.loaded_radar_data is None:
+            self.loaded_radar_data = load_radar_scenario(self.bundle.radar_path, self.app_config.radar)
+        if self.radar_reference_matrix is None:
+            rng = np.random.default_rng(self.app_config.seed)
+            self.radar_reference_matrix = generate_reference_matrix(
+                config=self.app_config.radar,
+                rng=rng,
+            )
+
+        radar_data = self.loaded_radar_data
+        if radar_data.frame_interval_s is not None and radar_data.frame_interval_s > 0:
+            step_index = int(max(0.0, current_s) / radar_data.frame_interval_s)
+        else:
+            step_index = int(max(0.0, current_s) * 10)
+        scenario, active_objects = scenario_at_time(
+            data=radar_data,
+            radar=self.app_config.radar,
+            current_s=current_s,
+        )
+        rng = np.random.default_rng(self.app_config.seed + step_index)
         surveillance = simulate_surveillance_matrix(
-            reference=reference,
+            reference=self.radar_reference_matrix,
             config=self.app_config.radar,
-            scenario=radar_data.scenario,
+            scenario=scenario,
             rng=rng,
         )
         processing = process_reference_and_surveillance(
-            reference=reference,
+            reference=self.radar_reference_matrix,
             surveillance=surveillance,
             config=self.app_config.radar,
         )
@@ -662,15 +710,24 @@ class HybridDetectionDashboard:
         detection_count = len(detections.detections)
         power_db = 10.0 * np.log10(detections.power_map + 1.0e-18)
         return RadarRuntime(
-            data=radar_data,
+            data=RadarScenarioData(
+                scenario=scenario,
+                objects=active_objects,
+                raw=radar_data.raw,
+                timeline=radar_data.timeline,
+                duration_s=radar_data.duration_s,
+                frame_interval_s=radar_data.frame_interval_s,
+            ),
             detected=detection_count > 0,
             detection_count=detection_count,
             power_db=power_db,
             detection_mask=detections.detection_mask,
+            range_axis_m=processing.range_axis_m,
+            velocity_axis_mps=processing.velocity_axis_mps,
         )
 
     def _load_radar_runtime(self) -> None:
-        self.radar_runtime = self._build_radar_runtime()
+        self.radar_runtime = self._build_radar_runtime(current_s=0.0)
         self.radar_count_label.configure(text=str(self.radar_runtime.detection_count))
 
     def _start_video(self) -> None:
@@ -691,6 +748,12 @@ class HybridDetectionDashboard:
         self.frame_index = 0
         self.plot_history = []
         self.playback_started_at = time.monotonic()
+        self.radar_update_interval_s = (
+            self.loaded_radar_data.frame_interval_s
+            if self.loaded_radar_data is not None and self.loaded_radar_data.frame_interval_s
+            else 0.5
+        )
+        self.last_radar_update_step = -1
         self._start_audio_playback()
         self._set_card(
             self.radar_card,
@@ -722,6 +785,7 @@ class HybridDetectionDashboard:
             return
 
         current_s = self.frame_index / self.video_fps
+        self._refresh_radar_runtime(current_s)
         frame = cv2.resize(frame, (800, 500))
         if skipped_frames or self.frame_index % VISION_EVERY_N_FRAMES == 0:
             self._run_vision(frame)
@@ -738,6 +802,16 @@ class HybridDetectionDashboard:
         elapsed_after_s = max(0.0, time.monotonic() - self.playback_started_at)
         delay_ms = max(1, int((next_due_s - elapsed_after_s) * 1000))
         self.root.after(delay_ms, self._process_frame)
+
+    def _refresh_radar_runtime(self, current_s: float) -> None:
+        interval_s = max(0.05, float(self.radar_update_interval_s))
+        step_index = int(max(0.0, current_s) / interval_s)
+        if self.radar_runtime is not None and step_index == self.last_radar_update_step:
+            return
+        self.last_radar_update_step = step_index
+        self.radar_runtime = self._build_radar_runtime(current_s=current_s)
+        self.radar_count_label.configure(text=str(self.radar_runtime.detection_count))
+        self._render_radar_heatmap()
 
     def _run_vision(self, frame: np.ndarray) -> None:
         self.last_vision_boxes = []
@@ -776,39 +850,82 @@ class HybridDetectionDashboard:
         self.video_label.image = image
 
     def _render_radar_heatmap(self) -> None:
+        ax = self.radar_axes
+        mask_ax = self.radar_mask_axes
+        ax.clear()
+        mask_ax.clear()
+        ax.set_facecolor("#020617")
+        mask_ax.set_facecolor("#020617")
+
         if self.radar_runtime is None:
-            self.radar_heatmap_label.configure(image="", text="")
+            ax.set_title("No radar data", color=TEXT, fontsize=10)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            mask_ax.set_title("No detection map", color=TEXT, fontsize=10)
+            mask_ax.set_xticks([])
+            mask_ax.set_yticks([])
+            self.radar_canvas.draw_idle()
             return
 
         power = self.radar_runtime.power_db
         finite = power[np.isfinite(power)]
         if finite.size == 0:
-            normalized = np.zeros(power.shape, dtype=np.uint8)
+            vmin, vmax = 0.0, 1.0
         else:
-            low, high = np.percentile(finite, [5, 99])
-            if high <= low:
-                high = low + 1.0
-            normalized = np.clip((power - low) / (high - low), 0.0, 1.0)
-            normalized = (normalized * 255).astype(np.uint8)
+            vmin, vmax = np.percentile(finite, [5, 99])
+            if vmax <= vmin:
+                vmax = vmin + 1.0
 
-        heatmap = cv2.applyColorMap(normalized, cv2.COLORMAP_TURBO)
         mask = self.radar_runtime.detection_mask
-        if mask.shape == normalized.shape and np.any(mask):
-            contours, _ = cv2.findContours(
-                mask.astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE,
+        extent = [
+            float(self.radar_runtime.range_axis_m[0]),
+            float(self.radar_runtime.range_axis_m[-1]),
+            float(self.radar_runtime.velocity_axis_mps[0]),
+            float(self.radar_runtime.velocity_axis_mps[-1]),
+        ]
+        ax.imshow(
+            power,
+            aspect="auto",
+            origin="lower",
+            extent=extent,
+            cmap="turbo",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        if mask.shape == power.shape and np.any(mask):
+            ax.contour(
+                mask.astype(float),
+                levels=[0.5],
+                colors="white",
+                linewidths=0.8,
+                origin="lower",
+                extent=extent,
             )
-            cv2.drawContours(heatmap, contours, -1, (255, 255, 255), 1)
 
-        heatmap = cv2.flip(heatmap, 0)
-        heatmap = cv2.resize(heatmap, (316, 316), interpolation=cv2.INTER_LINEAR)
-        ok, encoded = cv2.imencode(".png", heatmap)
-        if not ok:
-            return
-        image = tk.PhotoImage(data=encoded.tobytes())
-        self.radar_heatmap_label.configure(image=image)
-        self.radar_heatmap_label.image = image
+        ax.set_title("Range-Velocity Map", color=TEXT, fontsize=10)
+        ax.set_ylabel("Velocity (m/s)", color=MUTED, fontsize=8)
+        ax.tick_params(colors=MUTED, labelsize=7)
+        for spine in ax.spines.values():
+            spine.set_color(BORDER)
+
+        mask_ax.imshow(
+            mask.astype(float),
+            aspect="auto",
+            origin="lower",
+            extent=extent,
+            cmap="gray_r",
+            vmin=0.0,
+            vmax=1.0,
+        )
+        mask_ax.set_title("Detection Map (CFAR + filtering)", color=TEXT, fontsize=10)
+        mask_ax.set_xlabel("Bistatic range excess (m)", color=MUTED, fontsize=8)
+        mask_ax.set_ylabel("Velocity (m/s)", color=MUTED, fontsize=8)
+        mask_ax.tick_params(colors=MUTED, labelsize=7)
+        for spine in mask_ax.spines.values():
+            spine.set_color(BORDER)
+
+        self.radar_figure.tight_layout(pad=1.0)
+        self.radar_canvas.draw_idle()
         self.radar_heatmap_caption.configure(
             text=f"CFAR detections: {self.radar_runtime.detection_count}"
         )
@@ -986,13 +1103,12 @@ class HybridDetectionDashboard:
         if self.radar_runtime is None:
             return
         for radar_object in self.radar_runtime.data.objects:
-            current_range = max(0.0, radar_object.distance_m - radar_object.speed_mps * current_s)
             self.radar_table.insert(
                 "",
                 tk.END,
                 values=(
                     radar_object.name,
-                    f"{current_range:.0f}",
+                    f"{radar_object.distance_m:.0f}",
                     f"{radar_object.speed_mps:.1f}",
                     f"{radar_object.doppler_hz:.0f}",
                     f"{radar_object.amplitude_db:.1f}",
@@ -1000,6 +1116,8 @@ class HybridDetectionDashboard:
             )
 
     def _set_idle_state(self) -> None:
+        self.radar_runtime = None
+        self.last_radar_update_step = -1
         self._set_card(self.fusion_card, "Idle", MUTED)
         self._set_card(self.vision_card, "Idle", MUTED)
         self._set_card(self.audio_card, "Idle", MUTED)

@@ -1,0 +1,22 @@
+Timestamp: 2026-05-05T15:07:51+02:00
+Run type: tui
+Name: Custom Scenario
+
+Scenario summary
+----------------
+Name: Custom Scenario
+Noise power (dB): -75.00
+Clutter amplitude (dB): -45.00
+Targets: 1
+  1. distance=1200.00 m, speed=20.00 m/s, doppler=320.00 Hz, amplitude=-18.00 dB
+
+Simulation report
+  Range bins: 256
+  Doppler bins: 128
+  Detections: 2
+  Truth targets: 1
+  Truth:
+    1. range=1200.00 m, doppler=320.00 Hz, velocity=20.00 m/s
+  Detections:
+    1. range=1200.00 m, doppler=312.50 Hz, velocity=19.53 m/s, peak=14.92 dB, matched=True
+    2. range=240.00 m, doppler=312.50 Hz, velocity=19.53 m/s, peak=-24.49 dB, matched=False

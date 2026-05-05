@@ -1,13 +1,13 @@
 {
-  "name": "single-target-demo",
+  "name": "scenario-2",
   "noise_power_db": -75,
   "clutter_amplitude_db": -45,
   "targets": [
     {
       "name": "Drone 1",
-      "distance_m": 400,
+      "distance_m": 450,
       "speed_mps": 6,
-      "doppler_hz": 228,
+      "doppler_hz": 96,
       "amplitude_db": -18
     }
   ]
